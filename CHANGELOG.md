@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.9.2] - 2026-09-28
+
 ### Added
 
 - **VM Status Sensors** ([#268](https://github.com/ruaan-deysel/ha-unraid/issues/268)): Added dedicated sensor entities (`sensor.*_vm_status_*`) for virtual machines reporting their current state (e.g. `running`, `paused`, `shutoff`, `pmsuspended`, `crashed`, `idle`, `blocked`) along with `vm_id` and `raw_state` attributes.
