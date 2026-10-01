@@ -1,6 +1,7 @@
 {
   "domain": "unraid",
   "name": "Unraid",
+  "after_dependencies": ["http", "frontend", "lovelace"],
   "codeowners": ["@ruaan-deysel"],
   "config_flow": true,
   "dependencies": [],
