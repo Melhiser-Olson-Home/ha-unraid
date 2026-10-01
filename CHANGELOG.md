@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.0] - 2026-10-01
+
 ### Added
 
 - **Custom Lovelace Dashboard Cards Suite** ([#317](https://github.com/ruaan-deysel/ha-unraid/pull/317)): Added an official, modular Lovelace dashboard cards suite bundled directly into the integration:
