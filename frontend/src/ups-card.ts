@@ -10,6 +10,49 @@ import {
 } from "./icons";
 import { registerDashboardCard } from "./register-dashboard-card";
 
+export function formatRuntime(
+  state?: string | null,
+  attributes?: Record<string, unknown>
+): string | null {
+  if (!state || state === "unavailable" || state === "unknown") {
+    return null;
+  }
+  const trimmed = state.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // If already formatted text (e.g., "1 hour 41 minutes")
+  // Strip redundant trailing " min" if the string already contains duration units
+  if (/[a-zA-Z]/.test(trimmed)) {
+    return trimmed.replace(/(\b(?:minute|minutes|hour|hours|sec|second|seconds|min|mins)\b.*)\s+min$/i, "$1");
+  }
+
+  // If numeric (raw minutes or seconds)
+  const num = Number(trimmed);
+  if (Number.isFinite(num)) {
+    const unit = typeof attributes?.unit_of_measurement === "string" ? attributes.unit_of_measurement.toLowerCase() : "";
+    let totalMinutes = num;
+    if (unit === "s" || unit === "sec" || unit === "seconds") {
+      totalMinutes = Math.round(num / 60);
+    } else {
+      totalMinutes = Math.round(num);
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+
+    if (hours > 0) {
+      return mins > 0
+        ? `${hours} hour${hours > 1 ? "s" : ""} ${mins} minute${mins > 1 ? "s" : ""}`
+        : `${hours} hour${hours > 1 ? "s" : ""}`;
+    }
+    return `${mins} minute${mins !== 1 ? "s" : ""}`;
+  }
+
+  return trimmed;
+}
+
 export class UnraidUpsCard extends BaseUnraidCard {
   static override editorTag = UPS_EDITOR_TAG;
 
@@ -37,8 +80,7 @@ export class UnraidUpsCard extends BaseUnraidCard {
     const hasPower = Boolean(powerState && powerState.state !== "unavailable" && powerState.state !== "unknown");
     const powerW = hasPower && powerState ? `${powerState.state} W` : null;
 
-    const hasRuntime = Boolean(runtimeState && runtimeState.state !== "unavailable" && runtimeState.state !== "unknown");
-    const runtimeMin = hasRuntime && runtimeState ? `${runtimeState.state} min` : null;
+    const runtimeFormatted = formatRuntime(runtimeState?.state, runtimeState?.attributes);
 
     const hasVoltage = Boolean(voltageOut && voltageOut.state !== "unavailable" && voltageOut.state !== "unknown");
     const voltageV = hasVoltage && voltageOut ? `${voltageOut.state} V` : null;
@@ -61,11 +103,16 @@ export class UnraidUpsCard extends BaseUnraidCard {
           mdiFlash,
           badge
         )}
-
-        <!-- Ring Gauges -->
         <div class="rings-grid" style="grid-template-columns: repeat(2, 1fr);">
-          <!-- Battery -->
-          <div class="ring-card">
+          <div
+            class="ring-card"
+            role="${batteryState ? "button" : "none"}"
+            tabindex="${batteryState ? "0" : "-1"}"
+            style="${batteryState ? "cursor: pointer;" : ""}"
+            @click=${() => batteryState && this.openMoreInfo(batteryState.entity_id)}
+            @keydown=${(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && batteryState && (e.preventDefault(), this.openMoreInfo(batteryState.entity_id))}
+            title="Click to view Battery details"
+          >
             <div
               class="ring-gauge"
               style="--pct: ${batteryPct ?? 0}; --ring-color: ${batteryPct === null ? "var(--unraid-border)" : batteryPct < 20 ? "var(--unraid-error)" : batteryPct < 50 ? "var(--unraid-warning)" : "var(--unraid-online)"}"
@@ -73,11 +120,17 @@ export class UnraidUpsCard extends BaseUnraidCard {
               <span class="ring-content">${batteryPct !== null ? `${batteryPct}%` : "—"}</span>
             </div>
             <span class="ring-label">Battery Level</span>
-            <span class="ring-subtext">${runtimeMin ? `${runtimeMin} left` : batteryPct !== null ? "Healthy" : "No Data"}</span>
+            <span class="ring-subtext">${runtimeFormatted ? `${runtimeFormatted} left` : batteryPct !== null ? "Healthy" : "No Data"}</span>
           </div>
-
-          <!-- Load -->
-          <div class="ring-card">
+          <div
+            class="ring-card"
+            role="${loadState ? "button" : "none"}"
+            tabindex="${loadState ? "0" : "-1"}"
+            style="${loadState ? "cursor: pointer;" : ""}"
+            @click=${() => loadState && this.openMoreInfo(loadState.entity_id)}
+            @keydown=${(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && loadState && (e.preventDefault(), this.openMoreInfo(loadState.entity_id))}
+            title="Click to view Load details"
+          >
             <div
               class="ring-gauge"
               style="--pct: ${loadPct ?? 0}; --ring-color: ${loadPct === null ? "var(--unraid-border)" : loadPct > 80 ? "var(--unraid-error)" : loadPct > 50 ? "var(--unraid-warning)" : "var(--unraid-info)"}"
@@ -90,22 +143,52 @@ export class UnraidUpsCard extends BaseUnraidCard {
         </div>
 
         <div class="divider"></div>
-
-        <!-- Power & Electrical Specs -->
         <div class="detail-grid">
-          <div class="detail-item">
+          <div
+            class="detail-item"
+            role="${runtimeState ? "button" : "none"}"
+            tabindex="${runtimeState ? "0" : "-1"}"
+            style="${runtimeState ? "cursor: pointer;" : ""}"
+            @click=${() => runtimeState && this.openMoreInfo(runtimeState.entity_id)}
+            @keydown=${(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && runtimeState && (e.preventDefault(), this.openMoreInfo(runtimeState.entity_id))}
+            title="Click to view Runtime details"
+          >
             <span class="detail-label">Runtime Remaining</span>
-            <span class="detail-val">${runtimeMin || "—"}</span>
+            <span class="detail-val">${runtimeFormatted || "—"}</span>
           </div>
-          <div class="detail-item">
+          <div
+            class="detail-item"
+            role="${powerState ? "button" : "none"}"
+            tabindex="${powerState ? "0" : "-1"}"
+            style="${powerState ? "cursor: pointer;" : ""}"
+            @click=${() => powerState && this.openMoreInfo(powerState.entity_id)}
+            @keydown=${(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && powerState && (e.preventDefault(), this.openMoreInfo(powerState.entity_id))}
+            title="Click to view Power details"
+          >
             <span class="detail-label">Power Consumption</span>
             <span class="detail-val">${powerW || "—"}</span>
           </div>
-          <div class="detail-item">
+          <div
+            class="detail-item"
+            role="${voltageOut ? "button" : "none"}"
+            tabindex="${voltageOut ? "0" : "-1"}"
+            style="${voltageOut ? "cursor: pointer;" : ""}"
+            @click=${() => voltageOut && this.openMoreInfo(voltageOut.entity_id)}
+            @keydown=${(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && voltageOut && (e.preventDefault(), this.openMoreInfo(voltageOut.entity_id))}
+            title="Click to view Voltage details"
+          >
             <span class="detail-label">Output Voltage</span>
             <span class="detail-val">${voltageV || "—"}</span>
           </div>
-          <div class="detail-item">
+          <div
+            class="detail-item"
+            role="${healthState ? "button" : "none"}"
+            tabindex="${healthState ? "0" : "-1"}"
+            style="${healthState ? "cursor: pointer;" : ""}"
+            @click=${() => healthState && this.openMoreInfo(healthState.entity_id)}
+            @keydown=${(e: KeyboardEvent) => (e.key === "Enter" || e.key === " ") && healthState && (e.preventDefault(), this.openMoreInfo(healthState.entity_id))}
+            title="Click to view Battery Health details"
+          >
             <span class="detail-label">Battery Health</span>
             <span class="detail-val" style="${health ? "color: var(--unraid-online);" : ""}">${health || "—"}</span>
           </div>

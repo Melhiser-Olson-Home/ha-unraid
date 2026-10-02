@@ -194,6 +194,120 @@ The integration only creates entities for available services:
 
 Entities are automatically created when services become available.
 
+## Custom Dashboard Cards
+
+The integration includes a suite of 8 modern custom Lovelace cards bundled directly with zero extra setup needed:
+
+| Card | Tag | Description |
+| :--- | :--- | :--- |
+| **Server Overview** | `custom:unraid-server-card` | System uptime, OS version, registration badge, CPU/RAM utilization progress rings, motherboard temperatures, primary network info, live traffic, and boot device. |
+| **Storage & Disks** | `custom:unraid-storage-card` | Storage matrix showing array status, parity sync status and history, capacity progress rings, and individual disk health (temperatures, spin states, and read/write I/O). |
+| **User Shares** | `custom:unraid-shares-card` | User shares with disk usage progress bars, used/free/total capacity, and share protection states (`Protected` vs. `Unprotected`). |
+| **Network Interfaces** | `custom:unraid-network-card` | Physical NICs, bonds, and bridges with real-time throughput metrics (rates and totals), link speed badges, active link state chips, MTU, MAC addresses, and clickable WebGUI links. |
+| **Docker Containers** | `custom:unraid-docker-card` | Container manager displaying active containers, status badges, CPU/memory footprints, autostart toggles, and start/stop/restart controls. |
+| **Power & UPS** | `custom:unraid-ups-card` | Power & UPS monitor with battery charge rings, electrical load, AC voltages, estimated runtime, and adaptive status coloring. |
+| **Virtual Machines** | `custom:unraid-vm-card` | Virtual machine manager with state pills, memory allocation, CPU assignments, and lifecycle controls. |
+| **Control Center** | `custom:unraid-dashboard-card` | All-in-one unified dashboard with instant tab switching across all Unraid subsystems. |
+
+### Interactive More-Info Dialogs
+
+Clicking on CPU, RAM, or Storage rings, as well as uptime, network, and battery metrics, automatically opens Home Assistant's native **More-Info dialog** with historical usage graphs, attributes, and settings.
+
+### Dashboard Layout & Native View Tabs (2026+ Best Practice)
+
+For the best experience across mobile and desktop, configure your Unraid dashboard using Home Assistant's **Sections view** combined with the unified `custom:unraid-dashboard-card` or dedicated view tabs/subviews.
+
+> **Entity ID Placeholders**: Replace `<your_server>` with your server name (e.g., `cube`, `tower`) and `<model>` with your UPS model (e.g., `pr1000elcdrt1u`). You can check your exact entity IDs under **Settings → Devices & Services → Unraid**.
+
+```yaml
+views:
+  - title: Overview
+    path: overview
+    icon: mdi:server
+    type: sections
+    max_columns: 2
+    badges:
+      - type: entity
+        entity: sensor.<your_server>_array_state
+        show_name: true
+        show_state: true
+        color: green
+      - type: entity
+        entity: sensor.<your_server>_ups_<model>_battery
+        show_name: true
+        show_state: true
+        color: accent
+      - type: entity
+        entity: sensor.<your_server>_unread_notifications_total
+        show_name: true
+        show_state: true
+        color: red
+        visibility:
+          - condition: numeric_state
+            entity: sensor.<your_server>_unread_notifications_total
+            above: 0
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:unraid-dashboard-card
+            grid_options:
+              columns: full
+              rows: auto
+
+  # Dedicated views accessible via top tabs or subviews:
+  - title: Storage & Disks
+    path: storage
+    icon: mdi:harddisk
+    type: sections
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:unraid-storage-card
+          - type: custom:unraid-shares-card
+
+  - title: Docker
+    path: docker
+    icon: mdi:docker
+    type: sections
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:unraid-docker-card
+
+  - title: VMs
+    path: vms
+    icon: mdi:monitor
+    type: sections
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:unraid-vm-card
+
+  - title: Network
+    path: network
+    icon: mdi:lan-connect
+    type: sections
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:unraid-network-card
+
+  - title: Power & UPS
+    path: ups
+    icon: mdi:flash
+    type: sections
+    sections:
+      - type: grid
+        column_span: 2
+        cards:
+          - type: custom:unraid-ups-card
+```
+
 ## Troubleshooting
 
 ### Connection Issues

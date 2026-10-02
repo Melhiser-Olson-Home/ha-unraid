@@ -1,0 +1,102 @@
+---
+name: Test & Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Backend tests & coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@0e3884b860e20d3f4d5daa2347130beb51ccde47 # v10.2.0
+        with:
+          version: "0.12.22"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.14.2
+
+      - name: Install dependencies
+        run: |
+          uv venv --python 3.14.2
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+          uv pip install . ".[dev]" homeassistant
+
+      - name: Check API boundary
+        run: python3 script/check_api_boundary.py
+
+      - name: Run tests and generate coverage report
+        run: |
+          pytest --cov=custom_components/unraid --cov-branch --cov-report=xml
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        continue-on-error: true
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: ${{ github.repository }}
+          files: ./coverage.xml
+
+  frontend:
+    name: Frontend test & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@54337e0d02de9202d0948aaff36ad556375497b9 # v7.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build bundle
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser regression tests
+        run: npm run test:browser
+
+      - name: Upload browser test traces
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-test-results
+          path: frontend/test-results/
+          retention-days: 7
+
+      - name: Committed bundle matches source
+        run: |
+          changes="$(git status --porcelain --untracked-files=all -- ../custom_components/unraid/frontend/)"
+          if [ -n "$changes" ]; then
+            echo "Committed frontend bundle is out of date:"
+            echo "$changes"
+            git diff -- ../custom_components/unraid/frontend/
+            exit 1
+          fi
