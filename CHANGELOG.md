@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.1] - 2026-10-02
+
 ### Added
 
 - **Boot Device (Flash USB) Support**: Added integration entities (`DiskUsageSensor`, `DiskHealthBinarySensor`, `DiskTemperatureSensor`, `DiskErrorCountSensor`) for the Unraid USB boot disk (`data.boot`), enabling monitoring of flash drive capacity, filesystem, device path, temperature, error counts, and operational health.
