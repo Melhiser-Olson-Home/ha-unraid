@@ -102,6 +102,12 @@
     "container_restart_failed": {
       "message": "Failed to restart container {name}: {error}"
     },
+    "container_pause_failed": {
+      "message": "Failed to pause container {name}: {error}"
+    },
+    "container_unpause_failed": {
+      "message": "Failed to unpause container {name}: {error}"
+    },
     "container_autostart_failed": {
       "message": "Failed to update autostart for container {name}: {error}"
     },
@@ -482,6 +488,12 @@
       },
       "docker_container_restart": {
         "name": "Restart container {name}"
+      },
+      "docker_container_pause": {
+        "name": "Pause container {name}"
+      },
+      "docker_container_unpause": {
+        "name": "Unpause container {name}"
       },
       "vm_force_stop": {
         "name": "Force stop VM {name}"

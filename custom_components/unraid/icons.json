@@ -304,6 +304,12 @@
       "docker_container_restart": {
         "default": "mdi:restart"
       },
+      "docker_container_pause": {
+        "default": "mdi:pause"
+      },
+      "docker_container_unpause": {
+        "default": "mdi:play-pause"
+      },
       "vm_force_stop": {
         "default": "mdi:stop"
       },

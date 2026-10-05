@@ -11,7 +11,9 @@ from custom_components.unraid.button import (
     CheckContainerUpdatesButton,
     ClearDiskStatisticsButton,
     DeleteAllArchivedNotificationsButton,
+    DockerContainerPauseButton,
     DockerContainerRestartButton,
+    DockerContainerUnpauseButton,
     ParityCheckPauseButton,
     ParityCheckResumeButton,
     ParityCheckStartCorrectionButton,
@@ -45,6 +47,8 @@ def mock_coordinator():
         return_value={"parityCheck": {"resume": True}}
     )
     coordinator.async_restart_container = AsyncMock()
+    coordinator.async_pause_container = AsyncMock()
+    coordinator.async_unpause_container = AsyncMock()
     coordinator.async_force_stop_vm = AsyncMock()
     coordinator.async_reboot_vm = AsyncMock()
     coordinator.async_pause_vm = AsyncMock()
@@ -407,6 +411,110 @@ async def test_docker_restart_button_error_on_start(
     assert exc_info.value.translation_key == "container_restart_failed"
 
 
+@pytest.mark.parametrize(
+    ("button_cls", "action", "translation_key", "method"),
+    [
+        (
+            DockerContainerPauseButton,
+            "pause",
+            "docker_container_pause",
+            "async_pause_container",
+        ),
+        (
+            DockerContainerUnpauseButton,
+            "unpause",
+            "docker_container_unpause",
+            "async_unpause_container",
+        ),
+    ],
+)
+async def test_docker_pause_buttons(
+    mock_coordinator,
+    mock_server_info,
+    mock_container,
+    button_cls,
+    action,
+    translation_key,
+    method,
+):
+    """Pause/unpause buttons call the coordinator and refresh Docker state."""
+    mock_coordinator.data = None
+    button = button_cls(
+        coordinator=mock_coordinator,
+        server_uuid="test-uuid",
+        server_name="Test Server",
+        container=mock_container,
+        server_info=mock_server_info,
+    )
+    assert button.unique_id == f"test-uuid_container_{action}_plex"
+    assert button.translation_key == translation_key
+    assert button.entity_registry_enabled_default is False
+    assert button.translation_placeholders == {"name": "plex"}
+
+    await button.async_press()
+
+    getattr(mock_coordinator, method).assert_called_once_with("abc123")
+    mock_coordinator.async_request_docker_refresh.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("button_cls", "method", "translation_key"),
+    [
+        (DockerContainerPauseButton, "async_pause_container", "container_pause_failed"),
+        (
+            DockerContainerUnpauseButton,
+            "async_unpause_container",
+            "container_unpause_failed",
+        ),
+    ],
+)
+async def test_docker_pause_buttons_error(
+    mock_coordinator,
+    mock_server_info,
+    mock_container,
+    button_cls,
+    method,
+    translation_key,
+):
+    """Pause/unpause failures raise a translated HomeAssistantError."""
+    mock_coordinator.data = None
+    setattr(mock_coordinator, method, AsyncMock(side_effect=UnraidAPIError("nope")))
+    button = button_cls(
+        coordinator=mock_coordinator,
+        server_uuid="test-uuid",
+        server_name="Test Server",
+        container=mock_container,
+        server_info=mock_server_info,
+    )
+
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await button.async_press()
+
+    assert exc_info.value.translation_key == translation_key
+    mock_coordinator.async_request_docker_refresh.assert_not_awaited()
+
+
+async def test_docker_pause_button_resolves_current_id(
+    mock_coordinator, mock_server_info, mock_container
+):
+    """A recreated container's new ID is used, found by name."""
+    recreated = MagicMock()
+    recreated.name = "/plex"
+    recreated.id = "new-id"
+    mock_coordinator.data = MagicMock(containers=[recreated])
+    button = DockerContainerPauseButton(
+        coordinator=mock_coordinator,
+        server_uuid="test-uuid",
+        server_name="Test Server",
+        container=mock_container,
+        server_info=mock_server_info,
+    )
+
+    await button.async_press()
+
+    mock_coordinator.async_pause_container.assert_called_once_with("new-id")
+
+
 @pytest.mark.asyncio
 async def test_setup_entry_creates_container_restart_buttons(hass):
     """Test that setup creates restart buttons for Docker containers."""
@@ -446,10 +554,12 @@ async def test_setup_entry_creates_container_restart_buttons(hass):
 
     await async_setup_entry(hass, mock_entry, capture_entities)
 
-    # 3 parity + 3 notification + 2 container restart + 2 docker update = 10
-    assert len(entities) == 10
+    # 3 parity + 3 notification + 2 containers * 3 buttons + 2 docker update = 14
+    assert len(entities) == 14
     entity_types = [type(e).__name__ for e in entities]
     assert entity_types.count("DockerContainerRestartButton") == 2
+    assert entity_types.count("DockerContainerPauseButton") == 2
+    assert entity_types.count("DockerContainerUnpauseButton") == 2
     assert entity_types.count("CheckContainerUpdatesButton") == 1
     assert entity_types.count("UpdateAllContainersButton") == 1
 
@@ -890,9 +1000,9 @@ async def test_setup_entry_creates_container_and_vm_buttons(hass):
 
     await async_setup_entry(hass, mock_entry, capture_entities)
 
-    # 3 parity + 3 notification + 1 container restart + 2 docker update
-    # + 1 VM * 5 buttons = 14
-    assert len(entities) == 14
+    # 3 parity + 3 notification + 1 container * 3 buttons + 2 docker update
+    # + 1 VM * 5 buttons = 16
+    assert len(entities) == 16
     entity_types = [type(e).__name__ for e in entities]
     assert entity_types.count("DockerContainerRestartButton") == 1
     assert entity_types.count("CheckContainerUpdatesButton") == 1

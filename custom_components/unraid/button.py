@@ -213,17 +213,15 @@ class ParityCheckResumeButton(UnraidButtonEntity[UnraidStorageCoordinator]):
 # =============================================================================
 
 
-class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
+class DockerContainerButtonBase(UnraidButtonEntity[UnraidSystemCoordinator]):
     """
-    Button to restart a Docker container.
+    Base class for per-container buttons.
 
-    Performs a stop + start sequence since Unraid's GraphQL API
-    does not have a native restart mutation.
-
+    Container IDs change when a container is recreated, so the unique ID uses
+    the container name and the current ID is resolved at press time.
     Disabled by default - users can enable per-container as needed.
     """
 
-    _attr_translation_key = "docker_container_restart"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_entity_registry_enabled_default = False
 
@@ -233,18 +231,19 @@ class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
         server_uuid: str,
         server_name: str,
         container: DockerContainer,
+        action: str,
+        name: str,
         server_info: dict | None = None,
     ) -> None:
-        """Initialize Docker container restart button."""
-        # Container IDs are ephemeral - use NAME for stable unique_id
+        """Initialize a per-container button."""
         self._container_name = container.name.lstrip("/")
         self._container_id = container.id
         super().__init__(
             coordinator=coordinator,
             server_uuid=server_uuid,
             server_name=server_name,
-            resource_id=f"container_restart_{self._container_name}",
-            name=f"Restart Container {self._container_name}",
+            resource_id=f"container_{action}_{self._container_name}",
+            name=f"{name} {self._container_name}",
             server_info=server_info,
         )
         self._attr_translation_placeholders = {"name": self._container_name}
@@ -257,6 +256,36 @@ class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
                 if container.name.lstrip("/") == self._container_name:
                     return container.id
         return self._container_id
+
+
+class DockerContainerRestartButton(DockerContainerButtonBase):
+    """
+    Button to restart a Docker container.
+
+    Performs a stop + start sequence since Unraid's GraphQL API
+    does not have a native restart mutation.
+    """
+
+    _attr_translation_key = "docker_container_restart"
+
+    def __init__(
+        self,
+        coordinator: UnraidSystemCoordinator,
+        server_uuid: str,
+        server_name: str,
+        container: DockerContainer,
+        server_info: dict | None = None,
+    ) -> None:
+        """Initialize Docker container restart button."""
+        super().__init__(
+            coordinator,
+            server_uuid,
+            server_name,
+            container,
+            "restart",
+            "Restart Container",
+            server_info,
+        )
 
     async def async_press(self) -> None:
         """Handle button press to restart container."""
@@ -283,6 +312,96 @@ class DockerContainerRestartButton(UnraidButtonEntity[UnraidSystemCoordinator]):
                     "error": str(err),
                 },
             ) from err
+
+
+class DockerContainerPauseButton(DockerContainerButtonBase):
+    """Button to pause (freeze) a running Docker container."""
+
+    _attr_translation_key = "docker_container_pause"
+
+    def __init__(
+        self,
+        coordinator: UnraidSystemCoordinator,
+        server_uuid: str,
+        server_name: str,
+        container: DockerContainer,
+        server_info: dict | None = None,
+    ) -> None:
+        """Initialize Docker container pause button."""
+        super().__init__(
+            coordinator,
+            server_uuid,
+            server_name,
+            container,
+            "pause",
+            "Pause Container",
+            server_info,
+        )
+
+    async def async_press(self) -> None:
+        """Handle button press to pause container."""
+        try:
+            await self.coordinator.async_pause_container(self._resolve_container_id())
+            _LOGGER.debug("Paused Docker container '%s'", self._container_name)
+        except UnraidAPIError as err:
+            _LOGGER.error(
+                "Failed to pause Docker container '%s': %s", self._container_name, err
+            )
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="container_pause_failed",
+                translation_placeholders={
+                    "name": self._container_name,
+                    "error": str(err),
+                },
+            ) from err
+        await self.coordinator.async_request_docker_refresh()
+
+
+class DockerContainerUnpauseButton(DockerContainerButtonBase):
+    """Button to unpause a paused Docker container."""
+
+    _attr_translation_key = "docker_container_unpause"
+
+    def __init__(
+        self,
+        coordinator: UnraidSystemCoordinator,
+        server_uuid: str,
+        server_name: str,
+        container: DockerContainer,
+        server_info: dict | None = None,
+    ) -> None:
+        """Initialize Docker container unpause button."""
+        super().__init__(
+            coordinator,
+            server_uuid,
+            server_name,
+            container,
+            "unpause",
+            "Unpause Container",
+            server_info,
+        )
+
+    async def async_press(self) -> None:
+        """Handle button press to unpause container."""
+        try:
+            await self.coordinator.async_unpause_container(self._resolve_container_id())
+            _LOGGER.debug("Unpaused Docker container '%s'", self._container_name)
+        except UnraidAPIError as err:
+            _LOGGER.error(
+                "Failed to unpause Docker container '%s': %s",
+                self._container_name,
+                err,
+            )
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="container_unpause_failed",
+                translation_placeholders={
+                    "name": self._container_name,
+                    "error": str(err),
+                },
+            ) from err
+        await self.coordinator.async_request_docker_refresh()
 
 
 class UpdateAllContainersButton(UnraidButtonEntity[UnraidSystemCoordinator]):
@@ -903,7 +1022,7 @@ async def async_setup_entry(
     # ==========================================================================
     # Containers and VMs created after setup get their buttons on the next
     # coordinator refresh — no integration reload needed.
-    # Container restart buttons: users enable per-container as needed.
+    # Container restart/pause/unpause buttons: users enable per-container as needed.
     entry.async_on_unload(
         async_add_dynamic_resource_entities(
             coordinator=system_coordinator,
@@ -913,12 +1032,17 @@ async def async_setup_entry(
             ),
             get_key=lambda container: container.name.lstrip("/"),
             create_entities=lambda container: [
-                DockerContainerRestartButton(
+                button_cls(
                     system_coordinator,
                     server_uuid,
                     server_name,
                     container,
                     server_info,
+                )
+                for button_cls in (
+                    DockerContainerRestartButton,
+                    DockerContainerPauseButton,
+                    DockerContainerUnpauseButton,
                 )
             ],
         )
