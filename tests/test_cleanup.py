@@ -45,6 +45,10 @@ class TestIsDynamicResourceId:
     def test_container_restart(self) -> None:
         assert _is_dynamic_resource_id("container_restart_myapp") is True
 
+    def test_container_pause_buttons(self) -> None:
+        assert _is_dynamic_resource_id("container_pause_myapp") is True
+        assert _is_dynamic_resource_id("container_unpause_myapp") is True
+
     def test_container_cpu_sensor(self) -> None:
         assert _is_dynamic_resource_id("container_myapp_cpu") is True
 
@@ -243,6 +247,8 @@ class TestBuildExpectedDynamicUniqueIds:
         assert f"{_UUID}_container_switch_myapp" in result
         assert f"{_UUID}_container_autostart_myapp" in result
         assert f"{_UUID}_container_restart_myapp" in result
+        assert f"{_UUID}_container_pause_myapp" in result
+        assert f"{_UUID}_container_unpause_myapp" in result
         assert f"{_UUID}_container_myapp_cpu" in result
         assert f"{_UUID}_container_myapp_memory" in result
         assert f"{_UUID}_container_myapp_memory_pct" in result
@@ -1211,3 +1217,33 @@ class TestAsyncRemoveConfigEntryDevice:
 
         result = await async_remove_config_entry_device(hass, entry, device)
         assert result is True
+
+
+def test_every_container_button_is_expected() -> None:
+    """
+    Each per-container button's unique_id must be in the expected set.
+
+    Cleanup removes any "container_" entity it doesn't expect, so a button
+    missing here is created and then deleted as stale on the next pass.
+    """
+    from custom_components.unraid.button import (
+        DockerContainerPauseButton,
+        DockerContainerRestartButton,
+        DockerContainerUnpauseButton,
+    )
+
+    container = MagicMock()
+    container.name = "/myapp"
+    container.id = "abc123"
+    container.is_running = True
+    expected = build_expected_dynamic_unique_ids(
+        _UUID, make_system_data(containers=[container]), make_storage_data()
+    )
+
+    for button_cls in (
+        DockerContainerRestartButton,
+        DockerContainerPauseButton,
+        DockerContainerUnpauseButton,
+    ):
+        button = button_cls(MagicMock(), _UUID, "tower", container)
+        assert button.unique_id in expected, button_cls.__name__

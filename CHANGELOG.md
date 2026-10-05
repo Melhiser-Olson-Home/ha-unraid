@@ -7,6 +7,12 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.1.2] - 2026-10-04
+
+### Fixed
+
+- **Container pause / unpause buttons disappearing**: Stale-entity cleanup didn't know about the new per-container pause and unpause buttons, so it removed them shortly after they were created. They are now part of the expected entity set, with a test guarding every per-container button.
+
 ## [2026.10.1.1] - 2026-10-04
 
 Melhiser-Olson-Home fork release, based on upstream 2026.10.1.
