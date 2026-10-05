@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import re
 import time
@@ -18,6 +19,7 @@ from unraid_api.exceptions import (
 from unraid_api.models import DockerContainerStats
 
 from .const import (
+    WS_CONTAINER_STATS_STALL_TIMEOUT,
     WS_INITIAL_RETRY_DELAY,
     WS_MAX_RETRY_DELAY,
     WS_REFRESH_DEBOUNCE_SECONDS,
@@ -79,6 +81,9 @@ class UnraidWebSocketManager:
         # refresh storage data only on actual state transitions (see
         # _handle_array_updates for why this matters for spun-down disks).
         self._last_array_state: str | None = None
+        # Silence allowed on the container stats stream before reconnecting;
+        # grows on consecutive stalls (see _handle_container_stats).
+        self._stats_stall_timeout: float = WS_CONTAINER_STATS_STALL_TIMEOUT
 
     async def async_start(self) -> None:
         """Start all WebSocket subscriptions as background tasks."""
@@ -188,14 +193,77 @@ class UnraidWebSocketManager:
         return time.monotonic() - last_refresh_time >= WS_REFRESH_DEBOUNCE_SECONDS
 
     async def _handle_container_stats(self) -> None:
-        """Process container stats subscription and update coordinator."""
-        async for stats in self._api_client.subscribe_container_stats():
-            if not self._running:
-                break
-            if stats.id is None:
-                continue
-            container_id = _ANSI_ESCAPE_RE.sub("", stats.id)
-            self.container_stats.stats[container_id] = stats
+        """
+        Process container stats subscription and update coordinator.
+
+        `docker stats` streams a sample every few seconds while any container
+        runs, but a connection can stay open and silently stop delivering (no
+        error is raised, so nothing reconnects and sensors freeze on their
+        last values). This watches for that without sending any requests:
+
+        - While containers run, silence longer than the stall timeout drops
+          the frozen stats and returns, so `_run_subscription` reconnects.
+        - With no containers running, silence is expected and never triggers
+          a reconnect.
+        - The timeout doubles on each consecutive stall (capped at
+          WS_MAX_RETRY_DELAY) and resets once stats arrive, so a server that
+          keeps going quiet can't cause a reconnect loop.
+        """
+        stream = aiter(self._api_client.subscribe_container_stats())
+        pending: asyncio.Future[DockerContainerStats] | None = None
+        try:
+            while self._running:
+                if pending is None:
+                    pending = asyncio.ensure_future(anext(stream))
+                done, _ = await asyncio.wait(
+                    {pending}, timeout=self._stats_stall_timeout
+                )
+                if not done:
+                    if not self._containers_running():
+                        continue  # idle server: keep waiting on the same read
+                    self._handle_container_stats_stall()
+                    break
+                try:
+                    stats = pending.result()
+                except StopAsyncIteration:
+                    break
+                finally:
+                    pending = None
+                self._stats_stall_timeout = WS_CONTAINER_STATS_STALL_TIMEOUT
+                if stats.id is None:
+                    continue
+                container_id = _ANSI_ESCAPE_RE.sub("", stats.id)
+                self.container_stats.stats[container_id] = stats
+        finally:
+            if pending is not None:
+                pending.cancel()
+                with contextlib.suppress(asyncio.CancelledError, StopAsyncIteration):
+                    await pending
+            aclose = getattr(stream, "aclose", None)
+            if aclose is not None:
+                await aclose()
+
+    def _containers_running(self) -> bool:
+        """Return True if stats are expected (any container is running)."""
+        data = self._system_coordinator.data
+        if data is None:
+            # No container list yet: held stats mean containers were running.
+            return bool(self.container_stats.stats)
+        return any(c.is_running for c in data.containers or [])
+
+    def _handle_container_stats_stall(self) -> None:
+        """Drop frozen container stats and lengthen the next stall timeout."""
+        _LOGGER.warning(
+            "No container stats from %s for %ss while containers are running; "
+            "reconnecting",
+            self._server_name,
+            int(self._stats_stall_timeout),
+        )
+        # Stale values are worse than unknown ones until the stream recovers.
+        self.container_stats.stats.clear()
+        self._stats_stall_timeout = min(
+            self._stats_stall_timeout * 2, WS_MAX_RETRY_DELAY
+        )
 
     async def _handle_ups_updates(self) -> None:
         """Process UPS state subscription and trigger system refresh."""

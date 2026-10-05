@@ -102,6 +102,10 @@ WS_RETRY_BACKOFF_FACTOR: Final = 2.0
 # Leading-edge debounce: first WS event triggers refresh, subsequent events
 # within this window are suppressed to prevent refresh storms.
 WS_REFRESH_DEBOUNCE_SECONDS: Final = 10  # seconds
+# Container stats stream a sample every few seconds while containers run; this
+# much silence means the subscription stalled without erroring. Doubles on each
+# consecutive stall up to WS_MAX_RETRY_DELAY, and resets when stats arrive.
+WS_CONTAINER_STATS_STALL_TIMEOUT: Final = 120  # seconds
 
 
 # =============================================================================

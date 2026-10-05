@@ -13,6 +13,10 @@ from unraid_api.exceptions import (
 )
 from unraid_api.models import DockerContainerStats
 
+from custom_components.unraid.const import (
+    WS_CONTAINER_STATS_STALL_TIMEOUT,
+    WS_MAX_RETRY_DELAY,
+)
 from custom_components.unraid.websocket import (
     ContainerStatsSnapshot,
     UnraidWebSocketManager,
@@ -283,6 +287,129 @@ class TestContainerStatsSubscription:
         await manager._handle_container_stats()
 
         assert "c1" in manager.container_stats.stats
+
+
+# =============================================================================
+# UnraidWebSocketManager — Container Stats Stall Watchdog Tests
+# =============================================================================
+
+
+def _coordinator_with_container(*, running: bool) -> MagicMock:
+    """Create a system coordinator holding one container in the given state."""
+    container = MagicMock()
+    container.is_running = running
+    coordinator = MagicMock()
+    coordinator.data = MagicMock(containers=[container])
+    return coordinator
+
+
+class TestContainerStatsStallWatchdog:
+    """Tests for detecting a container stats stream that silently stalls."""
+
+    @pytest.mark.asyncio
+    async def test_stall_while_running_clears_and_returns(self) -> None:
+        """Silence while containers run drops frozen stats and reconnects."""
+        closed = asyncio.Event()
+
+        async def mock_subscribe() -> Any:
+            try:
+                yield _make_container_stats("c1")
+                await asyncio.Event().wait()  # open but silent forever
+            finally:
+                closed.set()
+
+        api_client = AsyncMock()
+        api_client.subscribe_container_stats = mock_subscribe
+        manager = _make_manager(
+            api_client=api_client,
+            system_coordinator=_coordinator_with_container(running=True),
+        )
+        manager._running = True
+        manager._stats_stall_timeout = 0.05
+
+        with (
+            # The first sample resets the timeout to this base value
+            patch(
+                "custom_components.unraid.websocket.WS_CONTAINER_STATS_STALL_TIMEOUT",
+                0.05,
+            ),
+            patch("custom_components.unraid.websocket._LOGGER") as logger,
+        ):
+            await asyncio.wait_for(manager._handle_container_stats(), timeout=2)
+
+        assert manager.container_stats.stats == {}
+        assert closed.is_set()
+        logger.warning.assert_called_once()
+        # Backoff: next stall needs twice the silence
+        assert manager._stats_stall_timeout == 0.1
+
+    @pytest.mark.asyncio
+    async def test_no_reconnect_while_nothing_running(self) -> None:
+        """With no containers running, silence never triggers a reconnect."""
+
+        async def mock_subscribe() -> Any:
+            await asyncio.sleep(0.25)  # several stall timeouts of silence
+            yield _make_container_stats("c1")
+
+        api_client = AsyncMock()
+        api_client.subscribe_container_stats = mock_subscribe
+        manager = _make_manager(
+            api_client=api_client,
+            system_coordinator=_coordinator_with_container(running=False),
+        )
+        manager._running = True
+        manager._stats_stall_timeout = 0.05
+
+        with patch("custom_components.unraid.websocket._LOGGER") as logger:
+            await asyncio.wait_for(manager._handle_container_stats(), timeout=2)
+
+        # Kept waiting on the same read and received the late sample
+        assert "c1" in manager.container_stats.stats
+        logger.warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_stats_reset_stall_timeout(self) -> None:
+        """Receiving stats restores the base stall timeout after a backoff."""
+
+        async def mock_subscribe() -> Any:
+            yield _make_container_stats("c1")
+
+        api_client = AsyncMock()
+        api_client.subscribe_container_stats = mock_subscribe
+        manager = _make_manager(api_client=api_client)
+        manager._running = True
+        manager._stats_stall_timeout = 240
+
+        await manager._handle_container_stats()
+
+        assert manager._stats_stall_timeout == WS_CONTAINER_STATS_STALL_TIMEOUT
+
+    def test_stall_backoff_caps_at_max_retry_delay(self) -> None:
+        """Repeated stalls double the timeout up to the 5-minute cap."""
+        manager = _make_manager(
+            system_coordinator=_coordinator_with_container(running=True)
+        )
+        timeouts = []
+        for _ in range(4):
+            manager._handle_container_stats_stall()
+            timeouts.append(manager._stats_stall_timeout)
+
+        assert timeouts == [
+            240,
+            WS_MAX_RETRY_DELAY,
+            WS_MAX_RETRY_DELAY,
+            WS_MAX_RETRY_DELAY,
+        ]
+
+    def test_containers_running_falls_back_to_snapshot(self) -> None:
+        """Without coordinator data, held stats imply containers were running."""
+        coordinator = MagicMock()
+        coordinator.data = None
+        manager = _make_manager(system_coordinator=coordinator)
+        assert manager._containers_running() is False
+
+        manager.container_stats.stats["c1"] = _make_container_stats("c1")
+        assert manager._containers_running() is True
 
 
 # =============================================================================
