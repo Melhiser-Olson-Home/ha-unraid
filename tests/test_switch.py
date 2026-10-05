@@ -148,6 +148,7 @@ def test_container_switch_attributes() -> None:
         id="ct:1",
         name="/web",
         state="RUNNING",
+        status="Up 5 days",
         image="nginx:latest",
         imageId="sha256:abc123",
         autoStart=True,
@@ -166,6 +167,7 @@ def test_container_switch_attributes() -> None:
 
     attrs = switch.extra_state_attributes
     assert attrs["status"] == "RUNNING"
+    assert attrs["status_detail"] == "Up 5 days"
     assert attrs["image"] == "nginx:latest"
     assert attrs["image_id"] == "sha256:abc123"
     assert attrs["auto_start"] is True
@@ -225,6 +227,7 @@ def test_container_switch_attributes_filters_none() -> None:
     attrs = switch.extra_state_attributes
     # Only status should be present (always set)
     assert attrs == {"status": "RUNNING"}
+    assert "status_detail" not in attrs
     assert "image" not in attrs
     assert "web_ui_url" not in attrs
     assert "icon_url" not in attrs
@@ -293,6 +296,28 @@ async def test_container_turn_on_success() -> None:
 
     await switch.async_turn_on()
     coordinator.async_start_container.assert_called_once_with("ct:1")
+    coordinator.async_request_docker_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_container_turn_on_unpauses_paused_container() -> None:
+    """Turning on a paused container unpauses it instead of starting it."""
+    container = DockerContainer(id="ct:1", name="/web", state="PAUSED")
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_start_container = AsyncMock()
+    coordinator.async_unpause_container = AsyncMock()
+
+    switch = DockerContainerSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        container=container,
+    )
+
+    await switch.async_turn_on()
+    coordinator.async_unpause_container.assert_called_once_with("ct:1")
+    coordinator.async_start_container.assert_not_called()
     coordinator.async_request_docker_refresh.assert_called_once()
 
 

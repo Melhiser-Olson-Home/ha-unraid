@@ -84,6 +84,9 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
     """Docker container control switch."""
 
     _attr_translation_key = "docker_container"
+    # Docker's status text ("Up 5 minutes") changes every poll; keep it out of
+    # the recorder so it doesn't write a state row each minute.
+    _unrecorded_attributes = frozenset({"status_detail"})
 
     def __init__(
         self,
@@ -157,6 +160,9 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
         attrs: dict[str, Any] = {
             "status": container.state,
         }
+        if container.status:
+            # Docker's own text, e.g. "Up 5 days" or "Exited (0) 2 hours ago"
+            attrs["status_detail"] = container.status
         if container.image is not None:
             attrs["image"] = container.image
         if container.imageId is not None:
@@ -179,10 +185,16 @@ class DockerContainerSwitch(UnraidSwitchEntity[UnraidSystemCoordinator]):
         return attrs
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Start container."""
+        """Start container, or unpause it if paused (Docker can't start those)."""
+        container = self._get_container()
+        paused = container is not None and (container.state or "").upper() == "PAUSED"
         try:
-            await self.coordinator.async_start_container(self._container_id)
-            _LOGGER.debug("Started Docker container: %s", self._container_id)
+            if paused:
+                await self.coordinator.async_unpause_container(self._container_id)
+                _LOGGER.debug("Unpaused Docker container: %s", self._container_id)
+            else:
+                await self.coordinator.async_start_container(self._container_id)
+                _LOGGER.debug("Started Docker container: %s", self._container_id)
         except UnraidAPIError as err:
             if _is_already_state_error(err):
                 _LOGGER.debug(
