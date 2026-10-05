@@ -1,9 +1,9 @@
 # Home Assistant Integration for Unraid®
 
 [![HACS Integration][hacsbadge]][hacs]
-[![GitHub Last Commit](https://img.shields.io/github/last-commit/ruaan-deysel/ha-unraid)](https://github.com/ruaan-deysel/ha-unraid/commits/main)
-[![GitHub Release](https://img.shields.io/github/v/release/ruaan-deysel/ha-unraid?sort=semver)](https://github.com/ruaan-deysel/ha-unraid/releases)
-[![GitHub Issues](https://img.shields.io/github/issues/ruaan-deysel/ha-unraid)](https://github.com/ruaan-deysel/ha-unraid/issues)
+[![GitHub Last Commit](https://img.shields.io/github/last-commit/Melhiser-Olson-Home/ha-unraid)](https://github.com/Melhiser-Olson-Home/ha-unraid/commits/main)
+[![GitHub Release](https://img.shields.io/github/v/release/Melhiser-Olson-Home/ha-unraid?sort=semver)](https://github.com/Melhiser-Olson-Home/ha-unraid/releases)
+[![GitHub Issues](https://img.shields.io/github/issues/Melhiser-Olson-Home/ha-unraid)](https://github.com/Melhiser-Olson-Home/ha-unraid/issues)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/ruaan-deysel)](https://github.com/sponsors/ruaan-deysel)
 [![Community Forum](https://img.shields.io/badge/Community-Forum-blue)](https://community.home-assistant.io/t/unraid-integration)
 [![License](https://img.shields.io/github/license/ruaan-deysel/ha-unraid)](./LICENSE)
@@ -13,6 +13,8 @@
 [hacs]: https://github.com/hacs/integration
 
 A Home Assistant custom integration for monitoring and controlling Unraid servers via the official GraphQL API.
+
+> **Fork notice**: This is the Melhiser-Olson-Home fork of [ruaan-deysel/ha-unraid](https://github.com/ruaan-deysel/ha-unraid). It adds container pause/unpause buttons and Docker status text, and fixes the Docker total memory sensors and frozen container stats — see the [CHANGELOG](./CHANGELOG.md). It uses the same `unraid` domain, so it replaces the upstream integration rather than running alongside it.
 
 > **Note**: This integration requires the **Unraid GraphQL API v4.31.1 or later**. The API can be updated independently of the Unraid OS version by installing the **Unraid Connect** plugin from the Unraid Community Applications store.
 >
@@ -24,9 +26,9 @@ A Home Assistant custom integration for monitoring and controlling Unraid server
 
 ### HACS (Recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ruaan-deysel&repository=ha-unraid&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Melhiser-Olson-Home&repository=ha-unraid&category=integration)
 
-1. Click the button above or manually add the repository in HACS
+1. Click the button above or add `https://github.com/Melhiser-Olson-Home/ha-unraid` as a custom repository (category **Integration**) in HACS
 2. Search for **Unraid** and click **Download**
 3. Restart Home Assistant
 
@@ -436,7 +438,7 @@ automation:
 ### Setup
 
 ```bash
-git clone https://github.com/ruaan-deysel/ha-unraid.git
+git clone https://github.com/Melhiser-Olson-Home/ha-unraid.git
 cd ha-unraid
 code .
 # Reopen in Dev Container when prompted

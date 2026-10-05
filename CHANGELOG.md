@@ -7,6 +7,21 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.1.1] - 2026-10-04
+
+Melhiser-Olson-Home fork release, based on upstream 2026.10.1.
+
+### Added
+
+- **Container pause / unpause buttons**: Per-container `Pause container {name}` and `Unpause container {name}` buttons (disabled by default, like the restart button).
+- **Docker status text**: Container switches expose Docker's own status as a `status_detail` attribute (e.g. `Up 5 days`, `Exited (0) 2 hours ago`), excluded from the recorder.
+
+### Fixed
+
+- **Docker total memory sensors**: `Docker total memory used` and `Docker total memory %` now sum each running container's used bytes. They previously summed per-container percentages (each relative to that container's own limit), producing totals above physical RAM.
+- **Turning on a paused container**: The container switch now unpauses a paused container instead of sending a start that Docker rejects.
+- **Frozen container stats**: If the container stats stream goes silent for 2 minutes while containers are running, stale stats are cleared and the subscription reconnects. Never reconnects while no containers run; the timeout doubles on consecutive stalls up to 5 minutes and resets when stats arrive.
+
 ## [2026.10.1] - 2026-10-02
 
 ### Added
