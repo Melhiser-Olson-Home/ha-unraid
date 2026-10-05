@@ -2659,10 +2659,46 @@ class DockerTotalCpuSensor(UnraidBaseEntity[UnraidSystemCoordinator], SensorEnti
         return {"container_count": len(self._ws_manager.container_stats.stats)}
 
 
+def _docker_total_memory_used(
+    coordinator: UnraidSystemCoordinator, ws_manager: UnraidWebSocketManager
+) -> int | None:
+    """
+    Return bytes of memory used by all running containers.
+
+    Sums each container's used bytes from its ``memUsage`` string. The
+    per-container ``memPercent`` can't be summed: Docker reports it relative
+    to that container's own memory limit, not to system RAM.
+    """
+    all_stats = ws_manager.container_stats.stats
+    if not all_stats:
+        return None
+    data: UnraidSystemData | None = coordinator.data
+    if data is not None:
+        valid_ids = {c.id for c in data.containers if c.is_running}
+        stats = [s for cid, s in all_stats.items() if cid in valid_ids]
+    else:
+        stats = list(all_stats.values())
+    used = [parse_docker_mem_usage(s.memUsage)[0] for s in stats]
+    values = [u for u in used if u is not None]
+    if not values:
+        return None
+    return sum(values)
+
+
+def _docker_container_count(
+    coordinator: UnraidSystemCoordinator, ws_manager: UnraidWebSocketManager
+) -> dict[str, Any]:
+    """Return running container count as a state attribute."""
+    data: UnraidSystemData | None = coordinator.data
+    if data is not None:
+        return {"container_count": sum(1 for c in data.containers if c.is_running)}
+    return {"container_count": len(ws_manager.container_stats.stats)}
+
+
 class DockerTotalMemoryPercentSensor(
     UnraidBaseEntity[UnraidSystemCoordinator], SensorEntity
 ):
-    """Total Docker memory usage sensor (sum of all containers, WebSocket-powered)."""
+    """Share of system RAM used by all containers (WebSocket-powered)."""
 
     _attr_translation_key = "docker_total_memory_percent"
     _attr_native_unit_of_measurement = "%"
@@ -2688,39 +2724,25 @@ class DockerTotalMemoryPercentSensor(
 
     @property
     def native_value(self) -> float | None:
-        """Return sum of memory percentage across currently active containers."""
-        all_stats = self._ws_manager.container_stats.stats
-        if not all_stats:
-            return None
+        """Return container memory used as a percentage of system RAM."""
         data: UnraidSystemData | None = self.coordinator.data
-        if data is not None:
-            valid_ids = {c.id for c in data.containers if c.is_running}
-            values = [
-                s.memPercent
-                for cid, s in all_stats.items()
-                if cid in valid_ids and s.memPercent is not None
-            ]
-        else:
-            values = [
-                s.memPercent for s in all_stats.values() if s.memPercent is not None
-            ]
-        if not values:
+        if data is None or not data.metrics.memory_total:
             return None
-        return round(sum(values), 2)
+        used = _docker_total_memory_used(self.coordinator, self._ws_manager)
+        if used is None:
+            return None
+        return round(used / data.metrics.memory_total * 100, 2)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return running container count as attribute."""
-        data: UnraidSystemData | None = self.coordinator.data
-        if data is not None:
-            return {"container_count": sum(1 for c in data.containers if c.is_running)}
-        return {"container_count": len(self._ws_manager.container_stats.stats)}
+        return _docker_container_count(self.coordinator, self._ws_manager)
 
 
 class DockerTotalMemoryBytesSensor(
     UnraidBaseEntity[UnraidSystemCoordinator], SensorEntity
 ):
-    """Total Docker memory used in bytes (derived from memory % x system RAM)."""
+    """Total memory used by all containers in bytes (WebSocket-powered)."""
 
     _attr_translation_key = "docker_total_memory_bytes"
     _attr_device_class = SensorDeviceClass.DATA_SIZE
@@ -2748,32 +2770,13 @@ class DockerTotalMemoryBytesSensor(
 
     @property
     def native_value(self) -> int | None:
-        """
-        Return total Docker memory used in bytes.
-
-        Computed as sum(container memPercent) x system_memory_total / 100.
-        """
-        all_stats = self._ws_manager.container_stats.stats
-        if not all_stats:
-            return None
-        data: UnraidSystemData | None = self.coordinator.data
-        if data is None or data.metrics.memory_total is None:
-            return None
-        valid_ids = {c.id for c in data.containers if c.is_running}
-        total_pct = sum(
-            s.memPercent
-            for cid, s in all_stats.items()
-            if cid in valid_ids and s.memPercent is not None
-        )
-        return int(total_pct * data.metrics.memory_total / 100)
+        """Return total memory used by running containers in bytes."""
+        return _docker_total_memory_used(self.coordinator, self._ws_manager)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return running container count as attribute."""
-        data: UnraidSystemData | None = self.coordinator.data
-        if data is not None:
-            return {"container_count": sum(1 for c in data.containers if c.is_running)}
-        return {"container_count": len(self._ws_manager.container_stats.stats)}
+        return _docker_container_count(self.coordinator, self._ws_manager)
 
 
 # =============================================================================
