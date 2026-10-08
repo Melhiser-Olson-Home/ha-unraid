@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.2] - 2026-10-08
+
 ### Fixed
 
 - **Duplicate Entity Unique IDs Across Storage Inventories** ([#327](https://github.com/ruaan-deysel/ha-unraid/issues/327)): Fixed `Platform unraid does not generate unique IDs. ID ... already exists - ignoring ...` errors when a drive (such as a partitioned SSD used for both boot and pool/cache, or disks reported in multiple inventory lists) appears across `disks`, `parities`, `caches`, or `boot`. Disks are now deduplicated by ID preserving first-precedence inventory order, ensuring unique entity registration across disk usage, temperature, error count, disk health binary sensors, disk spin switches, and disk spin-down buttons.
