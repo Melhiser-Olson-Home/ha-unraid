@@ -1,27 +1,33 @@
----
-name: Test & Coverage
+name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
-    name: Backend tests & coverage
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+        with:
+          persist-credentials: false
       - name: Set up uv
         uses: astral-sh/setup-uv@c84232ca4fde9b022e20a930bfbbecd386b56fdf # v10.2.0
         with:
-          version: "0.12.22"
+          version: 0.12.22
           enable-cache: true
 
       - name: Set up Python
@@ -48,7 +54,7 @@ jobs:
           if-no-files-found: error
 
   codecov:
-    name: Upload coverage to Codecov
+    name: Coverage
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -79,7 +85,7 @@ jobs:
           fail_ci_if_error: ${{ env.CODECOV_OIDC == 'true' }}
 
   frontend:
-    name: Frontend test & build
+    name: Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,10 +94,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+        with:
+          persist-credentials: false
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.0.0
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
