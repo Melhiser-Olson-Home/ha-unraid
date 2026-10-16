@@ -23,13 +23,13 @@ Bypass `unraid-api`".
 - **Class prefix**: `Unraid`
 - **Code path**: `custom_components/unraid/`
 - **Test path**: `tests/`
-- **Python**: 3.14.2+ | **HA**: 2026.8.0+ (target 2026.10 developer practice) | **Dep**: `unraid-api>=1.13.1`
+- **Python**: 3.14.2+ | **HA**: 2026.9.0+ (target 2026.10 developer practice) | **Dep**: `unraid-api>=1.13.1`
 - **Platforms**: `sensor`, `binary_sensor`, `switch`, `button`, `event`, `update`
 - **iot_class**: `local_polling`
 
 ## Code Quality Baseline
 
-- Ruff linter + formatter, line length 88, target `py313`
+- Ruff linter + formatter, line length 88, target `py314`
 - `from __future__ import annotations` in every file
 - Type hints on all public functions
 - Constants in `const.py` with `Final` annotations

@@ -60,7 +60,7 @@ The only sanctioned data flow is:
 | **Code path**        | `custom_components/unraid/`                   |
 | **Test path**        | `tests/`                                      |
 | **Python**           | 3.14.2+ (`requires-python`; CI uses 3.14.2) |
-| **HA minimum**       | 2026.8.0 (`hacs.json`, `pyproject.toml`)      |
+| **HA minimum**       | 2026.9.0 (`hacs.json`, `pyproject.toml`; device registry 2026.8 + Probatio 2026.9) |
 | **HA target**        | 2026.10 and later developer practice          |
 | **Key dependency**   | `unraid-api>=1.13.1`                          |
 | **iot_class**        | `local_polling` (plus websocket push for container stats and UPS) |
@@ -198,7 +198,7 @@ custom_components/unraid/
 
 - **Line length**: 88 characters (ruff formatter)
 - **Linter**: ruff (`E`, `W`, `F`, `I`, `C`, `B`, `UP` rules)
-- **Target**: ruff `target-version = "py313"` (runtime is Python 3.14; do not add 3.14-only syntax until the target is bumped)
+- **Target**: Python 3.14 (ruff `target-version = "py314"`, `requires-python >= 3.14.2`)
 - **Imports**: Use `from __future__ import annotations` in every file
 - **Type hints**: Required on all public functions; use `TYPE_CHECKING` guard for import-only types
 - **Logging**: `_LOGGER = logging.getLogger(__name__)` — use `_LOGGER.debug()` for data updates, `.info()` for lifecycle, `.warning()` for user-visible issues, `.error()` for failures
@@ -279,7 +279,9 @@ them raise `RuntimeError` through `report_usage`:
 | `FlowHandler.show_advanced_options` | remove the check (always true) | 2026.6 (removed 2027.6) |
 | Entity IDs whose domain differs from the platform | matching domain | 2026.4 (stops 2027.5) |
 | `RestoreStateData.last_states` | `async_get_stored_state` | 2026.11 |
-| Importing `voluptuous` directly in tests for error text | HA 2026.9+ validates with Probatio; `vol` is an alias, messages changed | 2026.9 |
+| `import voluptuous as vol` | `import probatio as vol` (HA 2026.9+ engine; voluptuous is only a `sys.modules` alias and is not installed) | 2026.9 |
+| `data_entry_flow.FlowResult` as a step return type | `ConfigFlowResult` / `RepairsFlowResult` | 2024.x |
+| `"%"`, `"GiB"` and other unit string literals | `UnitOfRatio.PERCENTAGE`, `UnitOfInformation.GIBIBYTES`, ... | 2026.7 |
 
 Still current and expected: `cv.config_entry_only_config_schema`, `ConfigType`,
 frozen `EntityDescription` dataclasses, `UpdateFailed(retry_after=...)`,
@@ -329,6 +331,7 @@ tests/
 - Registry behaviour is tested against the real registries from the `hass` fixture (`er.async_get(hass)`, `dr.async_get(hass)`) with `MockConfigEntry.add_to_hass(hass)`; never mock the registries
 - Full-integration tests use `hass.config_entries.async_setup(entry.entry_id)`; setting up the first entry of the domain loads every entry, and `async_register_frontend` / `UnraidWebSocketManager` must be patched
 - Deprecated core APIs raise `RuntimeError` in tests (`report_usage` with no integration frame), so a failing test that mentions "deprecated" means the code, not the test, must change
+- After deploying to a live Home Assistant, search its log for `Detected that custom integration 'unraid'` (the `report_usage` deprecation report) and for `custom_components.unraid` warnings; both must be empty before a PR is opened
 
 ### Running Tests
 
