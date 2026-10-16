@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.10.3] - 2026-10-16
+
 ### Fixed
 
 - **Duplicate entity IDs with multiple servers sharing a placeholder SMBIOS UUID** ([#351](https://github.com/tinkerologie/ha-unraid/issues/351)): Servers whose firmware reports a known placeholder UUID (for example `03000200-0400-0500-0006-000700080009` on TerraMaster and other AMI-based units) could be added twice thanks to the hostname-qualified config entry unique ID introduced in [#183](https://github.com/tinkerologie/ha-unraid/pull/183), but entities and the server device were still keyed on the raw UUID, so the second server's entities were rejected with `Platform unraid does not generate unique IDs`. The runtime server identity now follows the config entry's hostname-qualified unique ID for placeholder servers. Entities, the server device, stale-entity cleanup, device removal and diagnostics all use that one resolved identity. Servers with a real UUID, host-fallback entries and legacy entries are unchanged.
