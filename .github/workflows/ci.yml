@@ -56,6 +56,8 @@ jobs:
   codecov:
     name: Coverage
     needs: test
+    # The fork is not registered with Codecov, so uploads fail with "Repository not found".
+    if: github.repository == 'tinkerologie/ha-unraid'
     runs-on: ubuntu-latest
     permissions:
       contents: read # check out the repository
