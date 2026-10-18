@@ -1,6 +1,6 @@
 # The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
 
-target-version = "py313"
+target-version = "py314"
 
 # Exclude the hassfest sparse HA core checkout — its ruff.toml files reference
 # a pyproject.toml that doesn't exist in the sparse checkout, causing errors.
@@ -69,7 +69,7 @@ ignore = [
 ]
 
 # Banned imports — all Unraid server I/O must go through UnraidClient (unraid-api).
-# If the needed feature is missing, open an issue at https://github.com/ruaan-deysel/unraid-api
+# If the needed feature is missing, open an issue at https://github.com/tinkerologie/unraid-api
 [lint.flake8-tidy-imports.banned-api]
 "requests"              = { msg = "Use UnraidClient from unraid-api. See AGENTS.md." }
 "httpx"                 = { msg = "Use UnraidClient from unraid-api. See AGENTS.md." }

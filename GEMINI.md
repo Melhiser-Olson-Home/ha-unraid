@@ -6,19 +6,22 @@
 ## ⚠️ Critical Rule: Never Bypass `unraid-api`
 
 All communication with the Unraid server **must** go through the
-[`unraid-api`](https://github.com/ruaan-deysel/unraid-api) library
+[`unraid-api`](https://github.com/tinkerologie/unraid-api) library
 (`UnraidClient`). Never add direct GraphQL/HTTP/websocket/SSH I/O, and never
 re-implement or work around the library to land a fix faster — this keeps the
 integration compliant with Home Assistant best practice.
 
 If a fix needs something `unraid-api` does not expose, **STOP**: do not work
-around it here. Open an issue on **https://github.com/ruaan-deysel/unraid-api**
+around it here. Open an issue on **https://github.com/tinkerologie/unraid-api**
 and direct the user there. Full policy in [`AGENTS.md`](AGENTS.md) → "Critical
 Rule: Never Bypass `unraid-api`".
 
 ## Quick Reference
 
-- **Domain**: `unraid` | **Prefix**: `Unraid` | **Python**: 3.13+ | **HA**: 2026.5.0+ | **Dep**: `unraid-api>=1.13.1`
+- **Domain**: `unraid` | **Prefix**: `Unraid` | **Python**: 3.14.2+ | **HA**: 2026.9.0+ (target 2026.10 practice) | **Dep**: `unraid-api>=1.13.1`
+- **Platforms**: `sensor`, `binary_sensor`, `switch`, `button`, `event`, `update`
+- **Server identity**: `{server_uuid}` is always `entry.runtime_data.server_info["uuid"]` (resolved in `__init__.py`; hostname-qualified for placeholder SMBIOS UUIDs). Never key registries on `ServerInfo.uuid`.
+- **Deprecated HA APIs**: see `AGENTS.md` → "Home Assistant API Currency (2026.10+)" before touching registries, device info, config flows or units
 - **Code**: `custom_components/unraid/` | **Tests**: `tests/`
 - **Lint**: `./script/lint` | **Test**: `./script/test` | **Check**: `./script/check`
 
@@ -29,9 +32,9 @@ When editing specific file types, consult the relevant instruction file in `.git
 | File Pattern                                        | Instruction File                                                                                |
 | --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `**/*.py`                                           | [`python.instructions.md`](.github/instructions/python.instructions.md)                         |
-| Entity platform files                               | [`entities.instructions.md`](.github/instructions/entities.instructions.md)                     |
-| `coordinator.py`                                    | [`coordinator.instructions.md`](.github/instructions/coordinator.instructions.md)               |
+| Entity platform files (`sensor.py` ... `event.py`, `update.py`, `entity.py`) | [`entities.instructions.md`](.github/instructions/entities.instructions.md)                     |
 | `__init__.py` / `config_flow.py` / `coordinator.py` | [`api.instructions.md`](.github/instructions/api.instructions.md)                               |
+| `coordinator.py` / `websocket.py` / `cleanup.py`    | [`coordinator.instructions.md`](.github/instructions/coordinator.instructions.md)               |
 | `config_flow.py`                                    | [`config_flow.instructions.md`](.github/instructions/config_flow.instructions.md)               |
 | `diagnostics.py`                                    | [`diagnostics.instructions.md`](.github/instructions/diagnostics.instructions.md)               |
 | `repairs.py`                                        | [`repairs.instructions.md`](.github/instructions/repairs.instructions.md)                       |

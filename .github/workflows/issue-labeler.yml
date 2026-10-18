@@ -1,0 +1,17 @@
+name: Issue Labeler
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  schedule:
+    - cron: 17 3 * * *
+      timezone: Australia/Brisbane
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  label:
+    permissions:
+      issues: write # add bug/enhancement labels, and create them if missing
+    uses: tinkerologie/.github/.github/workflows/issue-labeler.yml@c9096d2f26b3fe506ec1a4c2f74234f66520fa26 # v1.2.0

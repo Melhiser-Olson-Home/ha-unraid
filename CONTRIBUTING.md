@@ -1,164 +1,161 @@
-# Contribution guidelines
+# Contributing to Home Assistant Unraid Integration
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Thank you for your interest in contributing to Home Assistant Unraid Integration. This project welcomes contributions from human developers and autonomous AI coding agents alike.
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
+Home Assistant integration for monitoring Unraid arrays, pools, and hardware status.
 
-## ⚠️ Critical Rule: Never Bypass `unraid-api`
+To maintain code quality, protect maintainer capacity, and prevent maintainer burnout, all contributors must follow the standardized development and governance workflow outlined below.
 
-**All communication with the Unraid server must go through the
-[`unraid-api`](https://github.com/ruaan-deysel/unraid-api) library (`UnraidClient`).**
-This is a hard architectural requirement — not a preference.
+---
 
-**You must never:**
-- Add direct GraphQL queries, REST/HTTP calls, WebSockets, SSH, or any other network I/O to the Unraid server from this repo.
-- Re-implement, monkey-patch, vendor, or work around `unraid-api` to "get a fix in faster."
-- Use `requests`, `httpx`, `websockets`, `paramiko`, `asyncssh`, raw `gql`, or direct `aiohttp.ClientSession()` in `custom_components/unraid/`.
+## Code of Conduct and Standards
 
-**If a feature you need is not exposed by `unraid-api`:**
+- Be respectful, constructive, and collaborative.
+- Zero secrets policy: Never commit passwords, tokens, API keys, private certificates, or personal data.
+- Anti-burnout principle: Perform full due diligence locally before opening pull requests or requesting review.
 
-1. **Stop** — do not add a workaround here.
-2. Open an issue on the library repo: **https://github.com/ruaan-deysel/unraid-api**
-3. Wait for the library to ship the capability, then consume it via `UnraidClient`.
-
-This rule is enforced automatically at three levels:
-- **`git commit`** — pre-commit hook (`check-api-boundary`) blocks the commit.
-- **`./script/check`** — runs the boundary check before linting and type-checking.
-- **CI** — `check-api-boundary.yml` workflow blocks the PR from merging.
-
-PRs that bypass the library will be rejected without further review.
-
-## Before Opening an Issue ⚠️
-
-**Please do the following BEFORE creating a new issue:**
-
-1. **Search existing issues** — check **both open AND closed** issues:
-   - [Open issues](https://github.com/ruaan-deysel/ha-unraid/issues)
-   - [Closed issues](https://github.com/ruaan-deysel/ha-unraid/issues?q=is%3Aissue+is%3Aclosed)
-2. **Use the correct channel:**
-   - **Bug reports** → [Open a Bug Report issue](https://github.com/ruaan-deysel/ha-unraid/issues/new?template=bug-report.yml)
-   - **Feature requests** → [Open a Feature Request issue](https://github.com/ruaan-deysel/ha-unraid/issues/new?template=feature-request.yml)
-   - **Questions, setup help, "how do I…"** → [GitHub Discussions](https://github.com/ruaan-deysel/ha-unraid/discussions) (NOT Issues)
-3. **Use the issue templates** — do not bypass them. Blank issues are disabled.
-4. **Fill in all required fields** — incomplete issues will be closed.
-
-> **Issues that are duplicates, missing required information, or are questions/support requests will be closed without further notice.**
-
-## GitHub is used for everything
-
-GitHub is used to host code, to track issues and feature requests, as well as accept pull requests.
-
-Pull requests are the best way to propose changes to the codebase.
-
-1. Fork the repo and create your branch from `main`.
-2. Run `./script/setup` to install dependencies and pre-commit hooks.
-3. If you've changed something, update the documentation.
-4. Make sure your code passes all checks (`./script/lint`).
-5. Test your contribution (`pytest`).
-6. Issue that pull request!
-
-## Keep Pull Requests Small and Focused
-
-**Important**: Please submit small, focused pull requests that address a single issue or feature.
-
-### Why Small PRs Matter
-
-- **Easier to review**: Reviewers can quickly understand the changes and provide meaningful feedback
-- **Faster to merge**: Small PRs are approved and merged more quickly
-- **Easier to test**: Focused changes are simpler to test thoroughly
-- **Easier to debug**: If something breaks, it's easier to identify the cause
-- **Less risk**: Smaller changes have less chance of introducing unintended side effects
-
-### What Makes a Good PR
-
-Good examples:
-
-- Fix a specific bug (one issue, one PR)
-- Add a single new sensor type
-- Update documentation for a particular feature
-- Refactor one specific module or function
-
-Avoid:
-
-- Combining multiple bug fixes in one PR
-- Mixing bug fixes with new features
-- Refactoring code while also adding features
-- Making unrelated changes across multiple files
-
-### If You Have Multiple Changes
-
-If you have multiple improvements or fixes:
-
-1. Create separate branches for each change
-2. Submit separate pull requests for each branch
-3. Reference related PRs in the description if they depend on each other
-
-This approach makes it much easier to review, test, and merge your contributions!
+---
 
 ## Development Workflow
 
+All contributions—whether submitted by humans or AI agents—must adhere to this step-by-step workflow:
+
+### 1. Open a GitHub Issue First
+- Every bug fix, feature, or enhancement must start with an issue.
+- Use the appropriate GitHub Issue Form:
+  - Bug Report (`01-bug-report.yml`)
+  - Enhancement Request (`02-enhancement-request.yml`)
+- Blank or unstructured issues are disabled. Pull requests without a corresponding issue will be closed.
+
+### 2. CodeRabbit AI Plan Generation
+- Once the issue is created, CodeRabbit AI is triggered to generate an implementation plan (either automatically via the `bug` or `enhancement` label, or by commenting `@coderabbitai plan` on the issue).
+- CodeRabbit analyzes the codebase and posts a comprehensive Coding Plan containing:
+  - Codebase research and affected components
+  - Architectural design choices
+  - Phased task breakdowns
+  - Machine-readable agent prompts and verifiable acceptance criteria
+- Contributors must review, refine, and confirm the plan before writing code. Do not start implementation without an approved plan.
+
+### 3. Create a Dedicated Branch
+- Create a feature or bugfix branch off `main`:
+  - Features: `git checkout -b feat/<issue-number>-<short-description>`
+  - Fixes: `git checkout -b fix/<issue-number>-<short-description>`
+  - Documentation: `git checkout -b docs/<issue-number>-<short-description>`
+- Never commit directly to the default branch (`main`).
+
+### 4. Implementation and Local Validation
+- Implement changes following project conventions and the approved plan.
+- Update `CHANGELOG.md` under `## [Unreleased]` describing what changed and why.
+- Run all required local validation checks (tests with coverage, linters, type checkers, and formatters). Ensure all checks pass with zero errors and zero warnings.
+
+### 5. Follow the Pull Request Template
+- Open a Pull Request using `.github/PULL_REQUEST_TEMPLATE.md`.
+- Complete all sections in the template:
+  - Summary of changes
+  - Linked issue keywords (`Fixes #<issue>`, `Closes #<issue>`, `Addresses #<issue>`)
+  - Verification steps and pasted terminal output
+  - Mandatory Pre-Submission Governance checklist (every box must be checked)
+
+### 6. Open PR as DRAFT First
+- Pull requests MUST be opened in Draft mode (`gh pr create --draft` or choose "Create draft pull request" in GitHub).
+- Draft PRs allow CI workflows to run in isolation without triggering premature reviewer notifications or consuming unnecessary review capacity.
+- Verify that all CI checks pass in draft mode and confirm that everything is working as expected from your end.
+
+### 7. Mark Ready for Review
+- Only after all local and draft CI checks have succeeded, convert the pull request to "Ready for Review".
+- Pull requests marked ready for review with failing checks, incomplete templates, or unverified changes will be converted back to draft or closed.
+
+### 8. Automated Quality Gates and Merge Criteria
+Before a pull request can be merged, it must satisfy all automated quality gates:
+- CodeRabbit AI Review: All review comments and suggestions must be resolved or addressed.
+- GitHub Copilot Code Review: Must pass with no blocking feedback.
+- Codecov Coverage Reports: Must pass with zero errors, zero warnings, and no coverage regressions below the repository target.
+- Branch Ruleset Checks: All required status checks defined in the default branch ruleset must pass.
+
+---
+
+## Local Development and Verification
+
+### Prerequisites and Setup
+
+- Python 3.12 or later
+- Virtual environment with dependencies installed (`script/setup/bootstrap` or `pip install -e ".[test,dev]"`)
+- Pre-commit (`pre-commit install`)
+
+### Validation Commands
+
 ```bash
-# 1. Setup (once)
-./script/setup
-
-# 2. Make code changes
-
-# 3. Lint (auto-fixes most issues)
-./script/lint
-
-# 4. Run tests
+# Run tests with pytest and coverage
 pytest
+pytest --cov=custom_components --cov-report=term-missing
 
-# 5. Test in live HA instance (optional)
-./script/develop
+# Linting and formatting with ruff
+ruff check .
+ruff format --check .
+
+# Static type checking
+mypy custom_components
+
+# Run all pre-commit hooks across all files
+pre-commit run --all-files
 ```
 
-## Use a Consistent Coding Style
+---
 
-- **Formatter/Linter**: [Ruff](https://docs.astral.sh/ruff/) (line-length 88, Python 3.13)
-- **Type hints**: Required on all public functions
-- **Imports**: Use `from __future__ import annotations`
-- See [`AGENTS.md`](AGENTS.md) for full code style documentation
+## Commit Message Guidelines
 
-## Test your code modification
+We follow Conventional Commits:
 
-This custom component provides a Home Assistant integration for Unraid servers.
+- `feat(<scope>): <description>` — New feature
+- `fix(<scope>): <description>` — Bug fix
+- `docs(<scope>): <description>` — Documentation changes
+- `test(<scope>): <description>` — Adding or updating tests
+- `refactor(<scope>): <description>` — Code restructuring without functional change
+- `chore(<scope>): <description>` — Tooling, dependencies, or repository maintenance
 
-It comes with a development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a standalone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml) file.
+---
 
-Use `./script/develop` to start a local HA instance with the integration loaded.
+## Pull Request Governance Summary
 
-## Any contributions you make will be under the Apache License 2.0
+- No spam or back-to-back PRs: Batch related changes into a single PR.
+- AI-assisted PRs require human verification and local testing before submission.
+- All template checkboxes must be confirmed.
+- PRs must remain in Draft until verified.
 
-In short, when you submit code changes, your submissions are understood to be under the same [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0) that covers the project. Feel free to contact the maintainers if that's a concern.
+## Issue and Pull Request Governance
 
-## Report bugs using GitHub's [issues](../../issues)
+These rules apply to every contributor, including AI coding agents. The full org-wide rules are in
+[GOVERNANCE.md](https://github.com/tinkerologie/.github/blob/main/GOVERNANCE.md).
 
-GitHub issues are used to track **confirmed bugs and feature requests only**.
-For questions, setup help, or troubleshooting, use [GitHub Discussions](https://github.com/ruaan-deysel/ha-unraid/discussions) instead.
-
-Report a bug by [opening a new issue](../../issues/new/choose) — but **search existing open and closed issues first** to avoid duplicates.
-
-## Write bug reports with detail, background, and sample code
-
-**Great Bug Reports** tend to have:
-
-- A quick summary and/or background
-- Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
-- What you expected would happen
-- What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
-
-People *love* thorough bug reports. I'm not even kidding.
-
-## License
-
-By contributing, you agree that your contributions will be licensed under its Apache License 2.0.
+1. **Issue first.** Open an issue with the bug or enhancement template before opening a pull
+   request. Keep the title prefix `[Bug]:` or `[Enhancement]:`, followed by a space and the title.
+   Automation applies the `bug` or `enhancement` label when it can tell the type, and CodeRabbit
+   then posts a Coding Plan on the issue. Implement from that plan. The labeler skips issues labeled
+   `question`, `duplicate`, `invalid`, `wontfix`, or `no-type`, and never re-adds a type label that
+   a maintainer removed.
+2. **Link the issue.** In the PR's **Related Issues** section, write `Closes #<number>` (or `Fixes`
+   or `Resolves`) when the PR completely resolves the issue; these keywords close it on merge. Use
+   `Part of #<number>` or `Related to #<number>` for partial work. The linked issue must exist; an
+   issue in another public repository (`owner/repo#123`) is fine. Only authors with write access or
+   higher (maintainers) may write `None`, for housekeeping such as CI,
+   documentation, or dependency updates; PR governance rejects `None` from everyone else.
+3. **One change at a time.** Contributors without write access can have at most 2 open, non-draft
+   pull requests here. GitHub enforces this limit, and draft pull requests do not count toward it.
+   Do not open PRs that edit the same files as another open PR, such as `CHANGELOG.md`,
+   translations, `README.md`, or generated bundles. Wait for the first to merge, rebase, then
+   continue.
+4. **Act on the Tinkerologie-Bot report.** When PR governance fails, Tinkerologie-Bot posts one comment
+   listing every problem as a numbered item. Fix each item by editing the PR description or pushing
+   the missing change; the check re-runs and the comment updates to passed.
+5. **Rebase before review.** Rebase on `main` before marking a PR ready for review.
+6. **Resolve conflicts first.** When a PR gets the `conflicts` label, rebase on `main`,
+   resolve the conflicts (keep every `CHANGELOG.md` entry under `[Unreleased]`), re-run the tests,
+   and force-push before doing any other work.
+7. **Coverage.** `codecov/patch` must pass: at least 90% of added or changed lines must be
+   covered by tests. The gate is the percentage; still, add tests for the uncovered lines the
+   Codecov PR comment lists, and explain in the PR description any line you leave uncovered. Do
+   not lower coverage targets or add coverage ignore rules to make it pass.
+8. **Stale items.** Issues and PRs with no activity for 14 days are labeled `stale` and closed 30
+   days later unless there is new activity. These labels are exempt:
+   - Issues: `pinned`, `security`, `confirmed`, `work-in-progress`, `priority: critical`, `priority: high`.
+   - Pull requests: `pinned`, `security`, `work-in-progress`.
